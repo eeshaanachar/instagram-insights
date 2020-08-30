@@ -1,34 +1,24 @@
+import sqlite3
 from random import sample
 
-file = open('./cache/__index__.txt')
-values = file.read().split()
-file.close()
-values.sort()
-values.insert(0,'')
 
-for i in range(1,len(values)):
-    print(i, values[i].title())
-options = list(map(int,input('Options> ').split()))
-count = list(map(int,input('Count> ').split()))
+keys = input('> ').split()
+counts = map(int, input('> ').split())
+hashtags = set()
 
-output = list()
-for i in range(len(options)):
-    try:
-        file = open('./cache/'+values[options[i]]+'.txt')
-        hashtags = file.read().split()
-        file.close()
-        output.extend(sample(hashtags,count[i]))
-    except ValueError:
-        print('Fewer added for',values[options[i]].title())
-        output.extend(hashtags)
-    except IndexError:
-        print('Invalid Input(s)')
-        input()
-        exit()
+with sqlite3.connect('cache.db') as connection:
+    cursor = connection.cursor()
+    for key, count in zip(keys, counts):
+        results = connection.execute(f'SELECT HASHTAG FROM HASHTAGS WHERE KEYWORD=? GROUP BY HASHTAG ORDER BY COUNT(*) DESC', (key, )).fetchmany(count * 3 // 2)
+        for result in sample(results, min(len(results), count)):
+            hashtags.add('#' + result[0])
 
-output = list(dict.fromkeys(output))
-file = open('output.txt','w')
-file.write('#'+' #'.join(output)+' ')
-file.close()
-input(str(len(output))+' hashtags found')
-
+count = 0
+with open('output.txt', 'w') as file_handle:
+    for hashtag in hashtags:
+        try:
+            file_handle.write(hashtag + ' ')
+            count += 1
+        except UnicodeEncodeError:
+            continue
+print(count)

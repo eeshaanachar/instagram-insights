@@ -1,3 +1,5 @@
+import requests
+from bs4 import BeautifulSoup
 from selenium import webdriver
 from time import sleep
 
@@ -41,13 +43,17 @@ class InstagramBot:
         self.driver.find_element_by_partial_link_text('following').click()
         return self.__scan()
 
-    def getLatestPosts(self, count=9):
-        urls = list()        
-        self.driver.get('https://www.instagram.com/' + self.username)
+    def __getPosts(self, url, count):
+        self.driver.get(url)
         a_tags = self.driver.find_element_by_tag_name('article').find_elements_by_tag_name('a')[:count]
         for a_tag in a_tags:
-            urls.append(a_tag.get_attribute('href'))
-        return urls
+            yield a_tag.get_attribute('href')
+
+    def getLatestPosts(self, count=9):
+        return list(self.__getPosts('https://www.instagram.com/' + self.username, count))
+
+    def getTopHashtagPosts(self, hashtag):
+        return list(self.__getPosts('https://www.instagram.com/explore/tags/' + hashtag, 9))
 
     def getPostLikeList(self, url):
         print('Scanning ' + url)
@@ -62,3 +68,11 @@ class InstagramBot:
             last_height = height
             height = self.driver.execute_script('arguments[0].scrollTo(0, arguments[0].scrollHeight); return arguments[0].scrollHeight;', scroll_box)
         return names
+
+    def getPostHashtags(self, url):
+        hashtags = list()
+        html = requests.get(url).text
+        soup = BeautifulSoup(html, 'lxml')
+        for html_element in soup.find_all('meta', property='instapp:hashtags'):
+            hashtags.append(html_element['content'])
+        return hashtags
